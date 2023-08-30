@@ -1,0 +1,49 @@
+[[DSS]]
+PL1 = "Monday 9->11"
+"PL2/PL3/PL5" = "Thursday 9->11"
+PL4 = "Tuesday 9->11"
+PL6 = "Thursday 11->13"
+
+[[DSS]]
+T1 = "Wednesday 9->11"
+
+[[IA]]
+PL1 = "Wednesday 11->13"
+PL2 = "Tuesday 14->16"
+PL3 = "Tuesday 16->18"
+"PL4/PL5" = "Friday 9->11"
+PL6 = "Monday 9->11"
+
+[[IA]]
+T1 = "Tuesday 11->13"
+
+[[CC]]
+"PL1/PL4" = "Thursday 9->11"
+PL2 = "Monday 11->13"
+PL3 = "Tuesday 9->11"
+"PL5/PL7" = "Monday 9->11"
+PL6 = "Friday 9->11"
+
+[[CC]]
+T1 = "Friday 11->13"
+T2 = "Wednesday 14->16"
+
+[[CP]]
+TP1 = "Tuesday 9->11"
+TP2 = "Wednesday 11->13"
+"TP3/TP5" = "Thursday 11->13"
+TP4 = "Monday 9->11"
+
+[[CP]]
+T1 = "Wednesday 14->16"
+T2 = "Monday 11->13"
+
+[[SD]]
+PL1 = "Tuesday 14->16"
+PL2 = "Tuesday 16->18"
+PL3 = "Monday 11->13"
+"PL4/PL5" = "Wednesday 11->13"
+"PL6/PL7" = "Thursday 11->13"
+
+[[SD]]
+T1 = "Friday 14->16"

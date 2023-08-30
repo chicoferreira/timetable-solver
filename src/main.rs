@@ -1,4 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::fs;
+use std::str::FromStr;
 use std::time::Instant;
 
 use itertools::Itertools;
@@ -22,6 +25,23 @@ impl Day {
     ];
 }
 
+struct ParseError(&'static str);
+
+impl FromStr for Day {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Monday" => Ok(Day::Monday),
+            "Tuesday" => Ok(Day::Tuesday),
+            "Wednesday" => Ok(Day::Wednesday),
+            "Thursday" => Ok(Day::Thursday),
+            "Friday" => Ok(Day::Friday),
+            _ => Err(ParseError("Invalid day")),
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 struct Hour {
     hour: u16,
@@ -34,32 +54,23 @@ impl Hour {
     }
 }
 
+impl FromStr for Hour {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (hour, minute) = s.split(':').collect_tuple().unwrap_or((s, "0"));
+
+        let hour = hour.parse().map_err(|_| ParseError("Invalid hour"))?;
+        let minute = minute.parse().map_err(|_| ParseError("Invalid minute"))?;
+
+        Ok(Hour { hour, minute })
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 struct Duration {
     start: Hour,
     end: Hour,
-}
-
-macro_rules! shift {
-    ($name:tt, $day:ident, $start_hour:literal:$start_minutes:literal->$end_hour:literal:$end_minutes:literal) => {
-        Shift {
-            name: $name,
-            day: Day::$day,
-            duration: Duration {
-                start: Hour {
-                    hour: $start_hour,
-                    minute: $start_minutes,
-                },
-                end: Hour {
-                    hour: $end_hour,
-                    minute: $end_minutes,
-                },
-            }
-        }
-    };
-    ($name:tt, $day:ident, $start_hour:literal->$end_hour:literal) => {
-        shift!($name, $day, $start_hour:0->$end_hour:0)
-    };
 }
 
 impl Duration {
@@ -86,9 +97,25 @@ impl Duration {
     }
 }
 
+impl FromStr for Duration {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (start, end) = s
+            .split("->")
+            .collect_tuple()
+            .ok_or(ParseError("Invalid duration format"))?;
+
+        let start = start.parse().map_err(|_| ParseError("Invalid start"))?;
+        let end = end.parse().map_err(|_| ParseError("Invalid end"))?;
+
+        Ok(Duration { start, end })
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Shift {
-    name: &'static str,
+    name: String,
     day: Day,
     duration: Duration,
 }
@@ -101,7 +128,7 @@ impl Shift {
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Subject {
-    name: &'static str,
+    name: String,
     available_shifts: Vec<Shift>,
 }
 
@@ -178,6 +205,8 @@ fn solve(subjects: Vec<Subject>) {
         .filter(|timetable| !timetable.is_overlapping())
         .collect();
 
+    println!("Total possible timetables: {}", result.len());
+
     fn generate_results(results: &[ChosenTimetable], days: usize) {
         let results = results
             .iter()
@@ -212,85 +241,52 @@ fn solve(subjects: Vec<Subject>) {
     });
 }
 
+fn load_schedule_file(file_name: &str) -> Result<Vec<Subject>, ParseError> {
+    let content = fs::read_to_string(file_name).map_err(|_| ParseError("File not found"))?;
+
+    let data: HashMap<String, Vec<HashMap<String, String>>> =
+        toml::from_str(content.as_ref()).map_err(|_| ParseError("Invalid TOML file"))?;
+
+    let mut result = Vec::new();
+
+    for (subject_name, shifts_vec) in data {
+        for shifts_map in shifts_vec {
+            let mut shifts = Vec::new();
+            for (shift_name, shift_data) in shifts_map {
+                let (day, duration) =
+                    shift_data
+                        .split_whitespace()
+                        .collect_tuple()
+                        .ok_or(ParseError(
+                            "Invalid shift data format. Expected: <day> <start>-><end>",
+                        ))?;
+
+                let day = day.parse()?;
+                let duration = duration.parse()?;
+
+                shifts.push(Shift {
+                    name: shift_name,
+                    day,
+                    duration,
+                })
+            }
+            result.push(Subject {
+                name: subject_name.clone(),
+                available_shifts: shifts,
+            })
+        }
+    }
+
+    Ok(result)
+}
+
 fn main() {
-    let subjects = vec![
-        Subject {
-            name: "DSS",
-            available_shifts: vec![
-                shift!("PL1", Monday, 9->11),
-                shift!("PL2/PL3/PL5", Thursday, 9->11),
-                shift!("PL4", Tuesday, 9->11),
-                shift!("PL6", Thursday, 11->13),
-            ],
-        },
-        Subject {
-            name: "DSS",
-            available_shifts: vec![shift!("T1", Wednesday, 9->11)],
-        },
-        Subject {
-            name: "IA",
-            available_shifts: vec![
-                shift!("PL1", Wednesday, 11->13),
-                shift!("PL2", Tuesday, 14->16),
-                shift!("PL3", Tuesday, 16->18),
-                shift!("PL4/PL5", Friday, 9->11),
-                shift!("PL6", Monday, 9->11),
-            ],
-        },
-        Subject {
-            name: "IA",
-            available_shifts: vec![shift!("T1", Tuesday, 11->13)],
-        },
-        Subject {
-            name: "CC",
-            available_shifts: vec![
-                shift!("PL1/PL4", Thursday, 9->11),
-                shift!("PL2", Monday, 11->13),
-                shift!("PL3", Tuesday, 9->11),
-                shift!("PL5/PL7", Monday, 9->11),
-                shift!("PL6", Friday, 9->11),
-            ],
-        },
-        Subject {
-            name: "CC",
-            available_shifts: vec![
-                shift!("T1", Friday, 11->13),
-                shift!("T2", Wednesday, 14->16),
-            ],
-        },
-        Subject {
-            name: "CP",
-            available_shifts: vec![
-                shift!("TP1", Tuesday, 9->11),
-                shift!("TP2", Wednesday, 11->13),
-                shift!("TP3/TP5", Thursday, 11->13),
-                shift!("TP4", Monday, 9->11),
-            ],
-        },
-        Subject {
-            name: "CP",
-            available_shifts: vec![
-                shift!("T1", Wednesday, 14->16),
-                shift!("T2", Monday, 11->13),
-            ],
-        },
-        Subject {
-            name: "SD",
-            available_shifts: vec![
-                shift!("PL1", Tuesday, 14->16),
-                shift!("PL2", Tuesday, 16->18),
-                shift!("PL3", Monday, 11->13),
-                shift!("PL4/PL5", Wednesday, 11->13),
-                shift!("PL6/PL7", Thursday, 11->13),
-            ],
-        },
-        Subject {
-            name: "SD",
-            available_shifts: vec![shift!("T1", Friday, 14->16)],
-        },
-    ];
+    let vec = load_schedule_file("schedule.toml").unwrap_or_else(|err| {
+        eprintln!("Error parsing schedule file: {}", err.0);
+        std::process::exit(1);
+    });
 
     let before = Instant::now();
-    solve(subjects);
+    solve(vec);
     println!("Elapsed time: {:.2?}", before.elapsed());
 }
