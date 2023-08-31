@@ -75,7 +75,7 @@ struct Duration {
 }
 
 impl Duration {
-    fn duration(&self) -> u16 {
+    fn minutes(&self) -> u16 {
         self.end.to_minutes() - self.start.to_minutes()
     }
 
@@ -146,7 +146,7 @@ impl<'a> ChosenTimetable<'a> {
 }
 
 impl<'a> ChosenTimetable<'a> {
-    fn get_duration_at_day(&self, day: Day) -> Option<Duration> {
+    fn get_total_duration_at_day(&self, day: Day) -> Option<Duration> {
         self.0
             .iter()
             .map(|(_, shift)| shift)
@@ -155,16 +155,31 @@ impl<'a> ChosenTimetable<'a> {
             .reduce(|duration, next_duration| duration.merge(&next_duration))
     }
 
+    fn get_minutes_in_classes(&self) -> u16 {
+        self.0
+            .iter()
+            .map(|(_, shift)| shift)
+            .map(|shift| shift.duration.minutes())
+            .sum()
+    }
+
+    fn get_wait_time_in_minutes_at_day(&self) -> u16 {
+        let total_duration = self.get_total_duration();
+        let minutes_in_classes = self.get_minutes_in_classes();
+
+        total_duration - minutes_in_classes
+    }
+
     fn get_total_duration(&self) -> u16 {
         Day::DAYS
             .iter()
-            .filter_map(|day| self.get_duration_at_day(*day))
-            .map(|duration| duration.duration())
+            .filter_map(|day| self.get_total_duration_at_day(*day))
+            .map(|duration| duration.minutes())
             .sum()
     }
 
     fn has_classes_at_day(&self, day: Day) -> bool {
-        self.get_duration_at_day(day).is_some()
+        self.get_total_duration_at_day(day).is_some()
     }
 
     fn count_days_with_classes(&self) -> usize {
@@ -175,14 +190,11 @@ impl<'a> ChosenTimetable<'a> {
     }
 
     fn is_overlapping(&self) -> bool {
-        for (_, x) in self.0.iter() {
-            for (_, y) in self.0.iter() {
-                if x != y && x.is_overlapping(y) {
-                    return true;
-                }
-            }
-        }
-        false
+        self.0
+            .iter()
+            .map(|(_, shift)| shift)
+            .tuple_combinations()
+            .any(|(shift1, shift2)| shift1.is_overlapping(shift2))
     }
 
     fn cmp(&self, other: &Self) -> Ordering {
@@ -217,21 +229,22 @@ fn solve(subjects: Vec<Subject>) {
         for (i, result) in (1..).zip(results) {
             fn get_hours_at_day(result: &ChosenTimetable, day: Day) -> u16 {
                 result
-                    .get_duration_at_day(day)
-                    .map(|duration| duration.duration())
+                    .get_total_duration_at_day(day)
+                    .map(|duration| duration.minutes())
                     .unwrap_or(0)
                     / 60
             }
 
             println!(
-                "{}. {:?} - {} hours ({})",
+                "{}. {:?} - {} hours ({}) with {} wait hours",
                 i,
                 result.prettify(),
                 result.get_total_duration() / 60,
                 Day::DAYS
                     .iter()
                     .map(|day| get_hours_at_day(result, *day))
-                    .join("+")
+                    .join("+"),
+                result.get_wait_time_in_minutes_at_day() / 60
             );
         }
     }
