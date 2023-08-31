@@ -6,7 +6,6 @@ use std::time::Instant;
 use itertools::Itertools;
 use toml::map::Map;
 use toml::Value;
-use toml::value::Array;
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 enum Day {
@@ -243,27 +242,25 @@ fn solve(subjects: Vec<Subject>) {
     });
 }
 
-fn handle_shifts_array(shifts_array: Array) -> Result<Vec<Shift>, ParseError> {
+fn handle_shifts_array(shift_table: Map<String, Value>) -> Result<Vec<Shift>, ParseError> {
     let mut shifts = Vec::new();
-    for shift in shifts_array {
-        if let Value::Table(shift) = shift {
-            for (shift_name, string_data) in shift {
-                if let Value::String(shift_data) = string_data {
-                    let (day, duration) = shift_data
-                        .split_whitespace()
-                        .collect_tuple()
-                        .ok_or(ParseError(
-                            "Invalid shift data format. Expected: <day> <start>-><end>"))?;
-                    let day = day.parse()?;
-                    let duration = duration.parse()?;
+    for (shift_name, shift_data) in shift_table {
+        if let Value::String(shift_data) = shift_data {
+            let (day, duration) =
+                shift_data
+                    .split_whitespace()
+                    .collect_tuple()
+                    .ok_or(ParseError(
+                        "Invalid shift data format. Expected: <day> <start>-><end>",
+                    ))?;
+            let day = day.parse()?;
+            let duration = duration.parse()?;
 
-                    shifts.push(Shift {
-                        name: shift_name,
-                        day,
-                        duration,
-                    })
-                }
-            }
+            shifts.push(Shift {
+                name: shift_name.clone(),
+                day,
+                duration,
+            })
         }
     }
     Ok(shifts)
@@ -271,17 +268,22 @@ fn handle_shifts_array(shifts_array: Array) -> Result<Vec<Shift>, ParseError> {
 
 fn load_schedule_file(file_name: &str) -> Result<Vec<Subject>, ParseError> {
     let content = fs::read_to_string(file_name).map_err(|_| ParseError("File not found"))?;
-    let data: Map<String, Value> = toml::from_str(&content).map_err(|_| ParseError("Invalid TOML file"))?;
+    let data: Map<String, Value> =
+        toml::from_str(&content).map_err(|_| ParseError("Invalid TOML file"))?;
 
     let mut result = Vec::new();
 
-    for (subject_name, shifts_array) in data {
-        if let Value::Array(shifts_array) = shifts_array {
-            let shifts = handle_shifts_array(shifts_array)?;
-            result.push(Subject {
-                name: subject_name.clone(),
-                available_shifts: shifts,
-            });
+    for (subject_name, shifts_tables) in data {
+        if let Value::Array(shifts_tables) = shifts_tables {
+            for shift_table in shifts_tables {
+                if let Value::Table(shift_table) = shift_table {
+                    let shifts = handle_shifts_array(shift_table)?;
+                    result.push(Subject {
+                        name: subject_name.clone(),
+                        available_shifts: shifts,
+                    });
+                }
+            }
         }
     }
 
