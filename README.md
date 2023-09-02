@@ -11,7 +11,7 @@ The generated timetables contain a single shift for each class.
 ## How it works
 
 After reading and parsing
-the [schedule input file](https://github.com/chicoferreira/timetable-solver/blob/master/schedule.toml), the program will
+the [schedule input file](schedule.toml), the program will
 generate every possible timetable for the given classes and their respective shifts.
 
 It generates the timetables applying the [cartesian product](https://en.wikipedia.org/wiki/Cartesian_product) for the
@@ -43,3 +43,7 @@ want to have too many classes in a single day.
 3. Write your schedule in `schedule.toml` according to the format in the file.
 4. Run the program using `cargo run` or compile it using `cargo build` and run the binary in `target/debug/timetable-solver`.
 5. The generated timetables will be printed to standard output.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
