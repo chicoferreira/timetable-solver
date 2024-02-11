@@ -137,11 +137,11 @@ struct Subject {
 struct ChosenTimetable<'a>(Vec<(&'a Subject, &'a Shift)>);
 
 impl<'a> ChosenTimetable<'a> {
-    fn prettify(&self) -> String {
+    fn to_calendarium_import_format(&self) -> String {
         self.0
             .iter()
-            .map(|(subject, shift)| format!("{} {}", subject.name, shift.name))
-            .join(", ")
+            .map(|(subject, shift)| format!("{}={}", subject.name, shift.name))
+            .join("&")
     }
 }
 
@@ -224,7 +224,7 @@ fn solve(subjects: Vec<Subject>) {
         let results = results
             .iter()
             .filter(|timetable| timetable.count_days_with_classes() == days)
-            .min_set_by(|a, b| a.cmp(b));
+            .sorted_by(|a, b| a.cmp(b));
 
         for (i, result) in (1..).zip(results) {
             fn get_hours_at_day(result: &ChosenTimetable, day: Day) -> u16 {
@@ -238,7 +238,7 @@ fn solve(subjects: Vec<Subject>) {
             println!(
                 "{}. {:?} - {} hours ({}) with {} wait hours",
                 i,
-                result.prettify(),
+                result.to_calendarium_import_format(),
                 result.get_total_duration() / 60,
                 Day::DAYS
                     .iter()
